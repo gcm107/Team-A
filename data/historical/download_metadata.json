@@ -1,0 +1,11 @@
+{
+  "total_tickers_requested": 7144,
+  "successful_downloads": 7144,
+  "failed_downloads": 0,
+  "requested_range": "period=max (all available)",
+  "actual_date_range": "1962-01-02 to 2025-11-13",
+  "actual_start_date": "1962-01-02",
+  "actual_end_date": "2025-11-13",
+  "total_rows": 89859344,
+  "download_timestamp": "2025-11-13 11:47:42"
+}
