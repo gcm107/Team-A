@@ -212,6 +212,7 @@ def save_to_parquet(df: pd.DataFrame, output_path: Path) -> None:
 def main() -> None:
     """Main execution function."""
     config = SymbolConfig()
+    #config = SymbolConfig(max_tickers=5,batch_size=5)
 
     # Validate input file exists
     if not config.input_csv.exists():

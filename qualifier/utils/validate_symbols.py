@@ -10,7 +10,7 @@ from pathlib import Path
 
 def main() -> None:
     
-    csv_path = Path("data/all_symbols_2025_11_13-1027.csv")
+    csv_path = Path("../../data/all_symbols_2025_11_13-1027.csv")
 
     if not csv_path.exists():
         print(f"Error: File not found: {csv_path}")
