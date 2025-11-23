@@ -5,7 +5,7 @@ This script:
 1. Reads symbols from CSV (format: EXCHANGE:TICKER)
 2. Deduplicates by ticker (ignoring exchange)
 3. Downloads historical OHLCV data using yfinance 
-4. Saves to Parquet format (ZSTD compression) for ML analysis
+4. Saves to Parquet format
 """
 
 import logging

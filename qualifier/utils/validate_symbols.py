@@ -1,7 +1,7 @@
 """
 check symbol deduplication.
 
-Run this before downloading to verify we dont have dupes
+run this before downloading to verify we dont have dupes. We shouldn't but always better to be safe than sorry
 """
 
 import pandas as pd
@@ -20,14 +20,14 @@ def main() -> None:
     print(f"Total rows in CSV: {len(df):,}")
     print(f"Unique symbols (with exchange): {df['symbol'].nunique():,}")
 
-    # Extract ticker
+    # extract ticker
     df["ticker"] = df["symbol"].str.split(":").str[-1]
     unique_tickers = df["ticker"].nunique()
 
     print(f"Unique tickers (no exchange): {unique_tickers:,}")
     print(f"Duplicates removed: {len(df) - unique_tickers:,}")
 
-    # Show examples of duplicates if any
+    #  duplicates if any
     duplicates = df[df.duplicated(subset=["ticker"], keep=False)]
     if len(duplicates) > 0:
         print(f"\nFound {len(duplicates)} duplicate entries:")
@@ -35,7 +35,7 @@ def main() -> None:
     else:
         print("\nNo duplicates found!")
 
-    # Show exchange distribution
+    #  exchange distribution
     print("\nExchange distribution:")
     print(df["exchange"].value_counts())
 
