@@ -1,0 +1,48 @@
+Business background 
+Financial markets generate large volumes of time-stamped 
+data that can be used to analyze past behavior and predict future 
+rice movements. This project to analyze stock price behavior using 
+autoencoder-based regime detection, identify micro-patterns that traditional 
+models miss, and evaluate whether transitions between regimes can predict 
+short-term future returns or volatility. We use small auto encoder to learn 
+regime from 20 days sliding window of price and volume to forecast micro 
+regimes changes in the market. 
+
+
+This is project team for curriculum-based project of Data science team of 3 Engineers 
+
+Bordoniqi, Gent 
+McDowell, Cale C. 
+Singh, Balwant 
+
+Phases (Data Preparation), Modeling, Clustering, Regime analysis, Predictive Evaluation and Reporting 
+
+#Data Preparation 
+Load parquet file 
+Create sliding 20-day windows 
+Engineer features (returns, rolling vol, log-volume) 
+
+#Modeling 
+Build compressed autoencoder (e.g., 20→8→3→8→20) 
+Tune hyperparameters 
+Extract latent dimension 
+
+#Clustering & Regime Analysis 
+Apply K-means on latent space 
+Label regimes 
+Generate transition matrix 
+Predictive Evaluation 
+
+Analyze: 
+Does Regime N → Regime M predict tomorrow’s return/volatility? 
+Compare to baseline (simple momentum model) 
+
+#Reporting 
+Charts: loss curves, cluster visualization, transition matrix 
+Insights & recommendations 
+Final presentation deck 
+
+#Software Architecture
+This project implements a data driven system to attempt to learn micro-regimes
+in financial markets using a deep learning pipeline. Our pipeline takes raw 
+historical OHLCV stock data and transforms it into fixed-length sequences.  
