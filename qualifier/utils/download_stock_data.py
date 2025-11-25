@@ -1,11 +1,6 @@
 """
-Download historical stock data for deduplicated symbols.
-
-This script:
-1. Reads symbols from CSV (format: EXCHANGE:TICKER)
-2. Deduplicates by ticker (ignoring exchange)
-3. Downloads historical OHLCV data using yfinance 
-4. Saves to Parquet format
+downloads stock data and saves it to parquet.
+reads symbols csv, removes duplicates, and grabs ohlcv data via yfinance.
 """
 
 import logging
@@ -19,10 +14,10 @@ from pydantic import BaseModel, Field, field_validator
 
 
 def get_project_root() -> Path:
-    """Get the project root directory (3 levels up from this script)."""
+    """gets project root, 3 folders up from here."""
     return Path(__file__).parent.parent.parent
 
-# Configure logging
+# setup logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -31,45 +26,40 @@ logger = logging.getLogger(__name__)
 
 
 class SymbolConfig(BaseModel):
-    """Configuration for symbol data download."""
+    """config for downloading stock data."""
 
     input_csv: Path = Field(default_factory=lambda: get_project_root() / "data" / "all_symbols_2025_11_13-1027.csv")
     output_dir: Path = Field(default_factory=lambda: get_project_root() / "data" / "historical")
-    start_date: str | None = Field(default=None, description="Start date (YYYY-MM-DD). Ignored if period is set.")
-    end_date: str | None = Field(default=None, description="End date (YYYY-MM-DD). None = today. Ignored if period is set.")
+    start_date: str | None = Field(default=None, description="start date yyyy-mm-dd, ignored if period is set")
+    end_date: str | None = Field(default=None, description="end date yyyy-mm-dd, none means today, ignored if period is set")
     period: str | None = Field(
-        default=None, description="Period to download: '1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max'. Defaults to 'max' if not set."
+        default=None, description="how far back: '1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max'"
     )
     batch_size: int = Field(default=50, ge=1, le=100)
     max_retries: int = Field(default=3, ge=1)
     max_tickers: int | None = Field(
-        default=None, description="Maximum number of tickers to download (None = all)"
+        default=None, description="max number of tickers to grab, none = all"
     )
 
     @field_validator("input_csv", "output_dir")
     @classmethod
     def validate_paths(cls, v: Path) -> Path:
-        """Ensure paths are Path objects."""
+        """make sure paths are path objects."""
         return Path(v)
 
 
 def extract_unique_tickers(csv_path: Path) -> pd.DataFrame:
     """
-    Extract unique tickers from CSV, removing exchange prefix.
-
-    Args:
-        csv_path: Path to CSV file with columns: symbol, exchange
-
-    Returns:
-        DataFrame with unique tickers and their exchanges
+    pulls unique tickers from the csv, strips exchange prefix.
+    returns dataframe with unique tickers and exchanges.
     """
     logger.info(f"Reading symbols from {csv_path}")
     df = pd.read_csv(csv_path)
 
-    # Extract ticker from "EXCHANGE:TICKER" format
+    # grab ticker part from "EXCHANGE:TICKER"
     df["ticker"] = df["symbol"].str.split(":").str[-1]
 
-    # Keep first occurrence of each ticker (prioritize by order in file)
+    # keep first one if there's duplicates
     df_unique = df.drop_duplicates(subset=["ticker"], keep="first").copy()
 
     logger.info(
@@ -86,15 +76,8 @@ def download_batch(
     start_idx: int = 0,
 ) -> pd.DataFrame | None:
     """
-    Download historical data for a batch of tickers in parallel using yf.Tickers.
-
-    Args:
-        tickers: List of ticker symbols
-        config: Configuration object
-        start_idx: Starting index for progress tracking
-
-    Returns:
-        DataFrame with OHLCVA data in long format (one row per ticker-date) or None if download fails
+    downloads data for a bunch of tickers at once using yfinance.
+    returns dataframe in long format or none if it fails.
     """
     if not tickers:
         return None
@@ -103,33 +86,33 @@ def download_batch(
     logger.info(f"Downloading batch of {total} tickers (indices {start_idx + 1}-{start_idx + total})...")
 
     try:
-        # Download all tickers in parallel using yf.Tickers
+        # download all tickers in parallel
         tickers_obj = yf.Tickers(" ".join(tickers))
         
-        # Get history data - returns DataFrame with MultiIndex columns: (Metric, Ticker)
-        # Default to "max" period to get all available historical data
+        # get history - comes back as multiindex (metric, ticker)
+        # defaults to "max" to get everything
         if config.period:
             hist = tickers_obj.history(period=config.period)
         elif config.start_date and config.end_date is None:
-            # When end_date is None, only pass start (history defaults to today)
+            # just start date, goes to today
             hist = tickers_obj.history(start=config.start_date)
         elif config.start_date:
-            # Both start and end dates provided
+            # both dates given
             hist = tickers_obj.history(start=config.start_date, end=config.end_date)
         else:
-            # Default to "max" to get all available data
+            # default to max
             hist = tickers_obj.history(period="max")
 
         if hist.empty:
             logger.warning(f"No data downloaded for batch of {total} tickers")
             return None
 
-        # Reshape to long format
+        # reshape to long format
         results = []
         
-        # Check if we have MultiIndex columns
+        # check if we got multiindex columns
         if isinstance(hist.columns, pd.MultiIndex):
-            # Multiple tickers - extract each ticker's data
+            # multiple tickers - extract each one
             available_tickers = hist.columns.levels[1] if len(hist.columns.levels) > 1 else []
             
             for ticker in tickers:
@@ -137,17 +120,17 @@ def download_batch(
                     logger.warning(f"No data available for {ticker}")
                     continue
 
-                # Extract columns for this ticker: (Metric, ticker)
+                # grab columns for this ticker
                 ticker_cols = [col for col in hist.columns if col[1] == ticker]
                 ticker_data = hist[ticker_cols].copy()
                 
-                # Flatten column names (remove ticker from MultiIndex)
+                # flatten column names
                 ticker_data.columns = [col[0] for col in ticker_data.columns]
                 ticker_data = ticker_data.reset_index()
                 ticker_data["ticker"] = ticker
                 results.append(ticker_data)
         else:
-            # Single ticker case - columns are already flat
+            # single ticker - already flat
             ticker = tickers[0]
             ticker_data = hist.copy()
             ticker_data = ticker_data.reset_index()
@@ -160,7 +143,7 @@ def download_batch(
 
         df = pd.concat(results, ignore_index=True)
 
-        # Rename columns to standard format
+        # rename to standard format
         df = df.rename(
             columns={
                 "Date": "date",
@@ -172,11 +155,11 @@ def download_batch(
             }
         )
 
-        # Ensure date is datetime and remove timezone
+        # make date datetime and strip timezone
         if "date" in df.columns:
             df["date"] = pd.to_datetime(df["date"]).dt.tz_localize(None)
 
-        # Select only OHLCV columns + ticker (close is already adjusted by default)
+        # keep only ohlcv + ticker
         cols = ["ticker", "date", "open", "high", "low", "close", "volume"]
         df = df[[c for c in cols if c in df.columns]]
 
@@ -190,11 +173,7 @@ def download_batch(
 
 def save_to_parquet(df: pd.DataFrame, output_path: Path) -> None:
     """
-    Save DataFrame to Parquet with ZSTD compression.
-
-    Args:
-        df: DataFrame to save
-        output_path: Output file path
+    saves dataframe to parquet with zstd compression.
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -210,25 +189,25 @@ def save_to_parquet(df: pd.DataFrame, output_path: Path) -> None:
 
 
 def main() -> None:
-    """Main execution function."""
+    """runs the download."""
     config = SymbolConfig()
     #config = SymbolConfig(max_tickers=5,batch_size=5)
 
-    # Validate input file exists
+    # make sure input file exists
     if not config.input_csv.exists():
         logger.error(f"Input file not found: {config.input_csv}")
         sys.exit(1)
 
-    # Extract unique tickers
+    # get unique tickers
     tickers_df = extract_unique_tickers(config.input_csv)
 
-    # Create output directory
+    # make output directory
     config.output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Download data in batches
+    # download in batches
     tickers = tickers_df["ticker"].tolist()
     
-    # Limit tickers if max_tickers is set
+    # limit if needed
     if config.max_tickers is not None:
         original_count = len(tickers)
         tickers = tickers[: config.max_tickers]
@@ -255,7 +234,7 @@ def main() -> None:
         else:
             logger.warning(f"Batch {i // config.batch_size + 1} produced no data")
 
-    # Combine all data
+    # combine everything
     if not all_data:
         logger.error("No data downloaded!")
         sys.exit(1)
@@ -263,11 +242,11 @@ def main() -> None:
     logger.info("\nCombining all batches...")
     combined_df = pd.concat(all_data, ignore_index=True)
 
-    # Save combined file
+    # save combined file
     combined_path = config.output_dir / "all_stocks_historical.parquet"
     save_to_parquet(combined_df, combined_path)
 
-    # Save metadata with accurate information from actual data
+    # save metadata with actual info from data
     if combined_df.empty:
         raise ValueError("No data to save metadata for!")
     
@@ -275,12 +254,12 @@ def main() -> None:
     actual_start_date = combined_df["date"].min().strftime("%Y-%m-%d")
     actual_end_date = combined_df["date"].max().strftime("%Y-%m-%d")
     
-    # Count tickers that actually have data
+    # count which ones actually worked
     tickers_with_data = set(combined_df["ticker"].unique())
     requested_tickers = set(tickers)
     failed_tickers = requested_tickers - tickers_with_data
     
-    # Determine what was requested
+    # figure out what was requested
     if config.period:
         requested_range = f"period={config.period}"
     elif config.start_date:
@@ -300,7 +279,7 @@ def main() -> None:
         "download_timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
     
-    # Optionally include list of failed tickers (limit to first 50 to avoid huge files)
+    # add failed tickers list if any (cap at 50)
     if failed_tickers:
         metadata["failed_ticker_list"] = sorted(list(failed_tickers))[:50]
         if len(failed_tickers) > 50:
