@@ -1,6 +1,9 @@
 # Team-A
 Team A Group Project
 
+
+The goal of this project is to discover short-term stock market “micro-regimes” from recent price/volume features using unsupervised learning and then test, with supervised models, whether those regimes and their transitions help predict 5-day future returns or volatility.
+
 ## Exploration
 Start with the `data-exploration.ipynb`, which shows how to load and explore the dataset (stored as a `.parquet` file). You can download the dataset from [Team A Dataset](https://sooners-my.sharepoint.com/:f:/g/personal/grason_c_mcdowell-1_ou_edu/EhDr2-QJqhdGryc_EcrvAGsBPVKuJQu_wBhOCPNeS3v2Hg?e=Slxi8G).
 
