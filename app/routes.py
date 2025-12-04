@@ -1,6 +1,4 @@
-"""
-Flask route handlers for stock prediction API endpoints.
-"""
+# flask routes
 
 from flask import jsonify, request, render_template
 from app import app
