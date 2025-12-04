@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Prediction API</title>
+</head>
+<body>
+    <h1>Stock Prediction API</h1>
+    
+    <form>
+        <label for="ticker">Select Ticker:</label>
+        <select id="ticker" name="ticker">
+            <option value="TSLA">TSLA</option>
+            <option value="JPM">JPM</option>
+            <option value="MSFT">MSFT</option>
+            <option value="AAPL">AAPL</option>
+            <option value="XOM">XOM</option>
+        </select>
+        
+        <br><br>
+        
+        <button type="button" onclick="predictUpDown()">Predict Up/Down</button>
+        <button type="button" onclick="predictReturn()">Predict Return</button>
+    </form>
+    
+    <div id="result"></div>
+    
+    <script>
+        const API_BASE = window.location.origin;
+        
+        async function predictUpDown() {
+            const ticker = document.getElementById('ticker').value;
+            const resultDiv = document.getElementById('result');
+            
+            resultDiv.textContent = 'Loading...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/predict/updown`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ticker: ticker})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const prediction = data.prediction === 1 ? 'UP' : 'DOWN';
+                    resultDiv.textContent = `Ticker: ${data.ticker}, Date: ${data.date}, Prediction: ${prediction}, Probability: ${(data.probability * 100).toFixed(2)}%`;
+                } else {
+                    resultDiv.textContent = 'Error: ' + (data.error || 'Prediction failed');
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        async function predictReturn() {
+            const ticker = document.getElementById('ticker').value;
+            const resultDiv = document.getElementById('result');
+            
+            resultDiv.textContent = 'Loading...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/predict/return`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ticker: ticker})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const returnPercent = (data.prediction * 100).toFixed(4);
+                    resultDiv.textContent = `Ticker: ${data.ticker}, Date: ${data.date}, Predicted 5-Day Return: ${returnPercent}%`;
+                } else {
+                    resultDiv.textContent = 'Error: ' + (data.error || 'Prediction failed');
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
